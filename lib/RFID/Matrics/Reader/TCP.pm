@@ -1,5 +1,8 @@
 package RFID::Matrics::Reader::TCP;
+@ISA = qw(RFID::Matrics::Reader RFID::Reader::TCP Exporter);
 use RFID::Matrics::Reader; $VERSION=$RFID::Matrics::Reader::VERSION;
+use RFID::Reader::TCP;
+use Exporter;
 
 # Written by Scott Gifford <gifford@umich.edu>
 # Copyright (C) 2004 The Regents of the University of Michigan.
@@ -24,38 +27,21 @@ An example:
     my $reader = 
       RFID::Matrics::Reader::TCP->new(PeerAddr => 1.2.3.4,
 				      PeerPort => 4001,
-				      node => 4,
-				      antenna => MATRICS_ANT_1,
-				      debug => 1,
-				      timeout => CMD_TIMEOUT,
+				      Node => 4,
+				      Antenna => MATRICS_ANT_1,
+				      Debug => 1,
+				      Timeout => CMD_TIMEOUT,
 				      )
         or die "Couldn't create reader object.\n";
-
-    $reader->changeparam(antenna => MATRICS_ANT_1,
-			 environment => 4,
-			 power_level => 0xff,
-			 combine_antenna_bits => 0);
-    my $rff = $reader->readfullfield(antenna => MATRICS_ANT_1);
-    foreach my $tag (@{$pp->{utags}})
-    {
-	print "I see tag $tag->{id}\n";
-    }
 
 =head1 DESCRIPTION
 
 This class is built on top of
 L<RFID::Matrics::Reader|RFID::Matrics::Reader> and
-L<IO::Socket::INET>, and implements the underlying setup, reading, and
-writing functions.  It has some special implementation details to deal
-with the I<timeout> parameter.
+L<RFID::Reader::TCP|RFID::Reader::TCP>.
 
 =cut
 
-use RFID::Matrics::Reader qw(:ant);
-use IO::Socket::INET;
-use IO::Select;
-
-our @ISA = qw(RFID::Matrics::Reader Exporter);
 our @EXPORT_OK = @RFID::Matrics::Reader::EXPORT_OK;
 our %EXPORT_TAGS = %RFID::Matrics::Reader::EXPORT_TAGS;
 
@@ -63,79 +49,17 @@ our %EXPORT_TAGS = %RFID::Matrics::Reader::EXPORT_TAGS;
 
 =head3 new
 
-This constructor accepts all arguments to the constructors for
-L<RFID::Matrics::Reader|RFID::Matrics::Reader> and
-L<IO::Socket::INET|IO::Socket::INET>, and passes them along to both
-constructors.
+This constructor accepts all arguments to the constructor for
+L<RFID::Reader::TCP|RFID::Reader::TCP>.  All other parameters are
+passed along to L<the set method|RFID::Matrics::Reader/set>.
 
 =cut
 
-sub new
-{
-    my $class = shift;
-    my(%p)=@_;
-    
-    my $self = {};
-
-    # For IO::Socket::INET
-    if ($p{timeout} && !$p{Timeout})
-    {
-	$p{Timeout}=$p{timeout};
-    }
-
-    $self->{_sock}=IO::Socket::INET->new(%p)
-	or die "Couldn't create socket: $!\n";
-    $self->{_select}=IO::Select->new($self->{_sock})
-	or die "Couldn't create IO::Select: $!\n";
-    bless $self,$class;
-
-    $self->_init(%p);
-
-    $self;
-}
-
-sub _readbytes
-{
-    my $self = shift;
-    my($bytesleft)=@_;
-    my $data = "";
-
-    while($bytesleft > 0)
-    {
-	my $moredata;
-	if ($self->{timeout})
-	{
-	    $self->{_select}->can_read($self->{timeout})
-		or die "Read timed out.\n";
-	}
-	my $rb = $self->{_sock}->sysread($moredata,$bytesleft)
-	    or die "Socket unexpectedly closed!\n";
-	$bytesleft -= $rb;
-	$data .= $moredata;
-    }
-    $data;
-}
-
-sub _writebytes
-{
-    my $self = shift;
-    if ($self->{timeout})
-    {
-	$self->{_select}->can_write($self->{timeout})
-	    or die "Write timed out.\n";
-    }
-    $self->{_sock}->syswrite(@_);
-}
-
-sub _connected
-{
-    return $self->{_sock};
-}
-
 =head1 SEE ALSO
 
-L<RFID::Matrics::Reader>, L<RFID::Matrics::Reader::Serial>,
-L<IO::Socket::INET>.
+L<RFID::Matrics::Reader>, L<RFID::Reader::TCP>,
+L<RFID::Matrics::Reader::Serial>,
+L<http://www.eecs.umich.edu/~wherefid/code/rfid-perl/>.
 
 =head1 AUTHOR
 
@@ -145,5 +69,7 @@ Copyright (C) 2004 The Regents of the University of Michigan.
 
 See the file LICENSE included with the distribution for license
 information.
+
+=cut
 
 1;

@@ -16,4 +16,8 @@ META.yml			Module meta-data (added by MakeMaker)
 README
 t/01compile.t
 t/02mock.t
+t/03tcp.t
+t/04serial.t
+t/readertest.pl
+testopts.pl
 TODO

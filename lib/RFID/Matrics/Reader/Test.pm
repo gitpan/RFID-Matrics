@@ -1,5 +1,7 @@
 package RFID::Matrics::Reader::Test;
 use RFID::Matrics::Reader; $VERSION=$RFID::Matrics::Reader::VERSION;
+use RFID::Reader::TestBase;
+@ISA=qw(RFID::Reader::TestBase RFID::Matrics::Reader);
 
 # Written by Scott Gifford <gifford@umich.edu>
 # Copyright (C) 2004 The Regents of the University of Michigan.
@@ -14,21 +16,12 @@ RFID::Matrics::Reader::Test - A fake implementation of L<RFID::Matrics::Reader|R
 
 Provides fake backend methods to test out
 L<RFID::Matrics::Reader|RFID::Matrics::Reader> without having access
-to a real reader.
+to a real reader.  Inherits from
+L<RFID::Reader::TestBase|RFID::Reader::TestBase>.
 
 =cut
 
 use RFID::Matrics::Reader qw(hexdump);
-our @ISA = qw(RFID::Matrics::Reader Exporter);
-
-use constant {
-    STATE_INITIAL => 0,
-    STATE_GOTSOF => 1,
-    STATE_GOTADDR => 2,
-    STATE_GETTINGDATA => 3,
-    STATE_GOTDATA => 4,
-    STATE_RESPONDING => 5,
-};
 
 our %TESTRESPONSE = 
     (
@@ -67,109 +60,34 @@ sub new
     my $self = {};
     bless $self,$class;
     
-    $self->_initstate();
-    $self->_init(%p);
+    # Initialize everything.
+    foreach my $parent (@ISA)
+    {
+	if (my $init = $parent->can('_init'))
+	{
+	    $init->($self,%p);
+	}
+    }
 
     $self;
 }
 
-sub _initstate
+sub _process_input
 {
     my $self = shift;
-    
-    $self->{_state} = STATE_INITIAL;
-    $self->{_readbuf}='';
-    $self->{_writebuf}='';
-    $self->{_bytesleft}=0;
-}
+    my($buf)=@_;
 
-sub _writebytes
-{
-    my $self = shift;
-    eval {
-	foreach my $b (split(//,$_[0]))
-	{
-	    if ($self->{_state} == STATE_INITIAL)
-	    {
-		if (ord($b) == 0x01)
-		{
-		    $self->{_state} = STATE_GOTSOF;
-		}
-	    }
-	    elsif ($self->{_state} == STATE_GOTSOF)
-	    {
-		$self->{_state} = STATE_GOTADDR;
-	    }
-	    elsif ($self->{_state} == STATE_GOTADDR)
-	    {
-		$self->{_bytesleft} = ord($b) - 2;
-		$self->{_state} = STATE_GETTINGDATA;
-	    }
-	    elsif ($self->{_state} == STATE_GETTINGDATA)
-	    {
-		if (!(--$self->{_bytesleft}))
-		{
-		    $self->{_state} = STATE_GOTDATA;
-		}
-	    }
-	    elsif ($self->{_state} == STATE_GOTDATA)
-	    {
-		die "Tried to write more data before response was read!";
-	    }
-	    else
-	    {
-		die "Unexpected state in _writebytes: $self->{_state}";
-	    }
-	    $self->{_readbuf} .= $b;
-	}
-    };
-    return $self->error($@)
-	if $@;
-    1;
-}
-
-sub _readbytes
-{
-    my $self = shift;
-    my($wantbytes)=@_;
-
-    if ($self->{_state} == STATE_GOTDATA)
+    if ($buf =~ /^\x01.(.)/o)
     {
-	$self->{_writebuf} = $TESTRESPONSE{$self->{_readbuf}}
-  	  or die "Unexpected input: ",hexdump($self->{_readbuf}),"\n";
-	$self->{_state} = STATE_RESPONDING;
-    }
-    
-    # Fall through from above
-    if ($self->{_state} == STATE_RESPONDING)
-    {
-	if ($wantbytes > length($self->{_writebuf}))
+	my $pktsize = ord($1)+1;
+	if (length($buf) >= ($pktsize))
 	{
-	    die "Tried to read too many bytes";
+	    my $resp = $TESTRESPONSE{substr($buf,0,$pktsize,'')}
+  	        or die "Test module received invalid input: ",hexdump $buf,"\n";
+	    $self->_add_output($resp);
 	}
-	my $ret = substr($self->{_writebuf},0,$wantbytes,'');
-	
-	if ($self->{_writebuf} eq '')
-	{
-	    $self->_initstate;
-	}
-	return $ret;
     }
-    else
-    {
-	die "Unexpected state in _readbytes: $self->{_state}!";
-    }
-}
-
-sub stop_constant_read
-{
-    my $self = shift;
-
-    # State needs to be reset; this is a quick hack, but that's OK
-    # since this is just a test module.
-    $self->_initstate;
-
-    $self->SUPER::stop_constant_read();
+    $buf;
 }
 
 sub hex2bin
@@ -184,11 +102,11 @@ sub hex2bin
 =head1 SEE ALSO
 
 L<RFID::Matrics::Reader>, L<RFID::Matrics::Reader::Serial>,
-L<RFID::Matrics::Reader::TCP>.
+L<RFID::Matrics::Reader::TCP>, L<RFID::Reader::TestBase>.
 
 =head1 AUTHOR
 
-Scott Gifford <gifford@umich.edu>, <sgifford@suspectclass.com>
+Scott Gifford E<lt>gifford@umich.eduE<gt>, E<lt>sgifford@suspectclass.comE<gt>
 
 Copyright (C) 2004 The Regents of the University of Michigan.
 

@@ -11,4 +11,5 @@
 ^Makefile$
 ^pm_to_blib$
 CVS
-_test.pl
+_test\.pl
+\.out$

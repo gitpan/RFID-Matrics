@@ -1,5 +1,8 @@
 package RFID::Matrics::Tag;
+@ISA = qw(RFID::Tag Exporter);
 use RFID::Matrics::Reader; $VERSION=$RFID::Matrics::Reader::VERSION;
+use RFID::Tag qw(tagcmp);
+use Exporter;
 
 # Written by Scott Gifford <gifford@umich.edu>
 # Copyright (C) 2004 The Regents of the University of Michigan.
@@ -8,12 +11,12 @@ use RFID::Matrics::Reader; $VERSION=$RFID::Matrics::Reader::VERSION;
 
 =head1 NAME
 
-RFID::Matrics::Tag - Object representing a single tag read by a Matrics reader.
+RFID::Matrics::Tag - Object representing a single proprietary Matrics tag.
 
 =head1 SYNOPSIS
 
-These objects are usually returned by an L<RFID::Matrics::Reader>
-object:
+These objects are usually returned by an
+L<RFID::Matrics::Reader|RFID::Matrics::Reader> object:
 
     use RFID::Matrics::Tag qw(tag2txt);
 
@@ -35,12 +38,8 @@ But you can create your own if you want:
 
 use strict;
 
-use Exporter;
-use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS);
-@ISA=qw(Exporter);
-@EXPORT_OK=qw(tagcmp tag2txt);
-%EXPORT_TAGS=(tagtypes => [ qw(MATRICS_TAGTYPE_EPC MATRICS_TAGTYPE_MATRICS MATRICS_TAGTYPE_OLDMATRICS)]);
-Exporter::export_ok_tags('tagtypes');
+use vars qw(@EXPORT_OK %EXPORT_TAGS);
+@EXPORT_OK=(@RFID::Tag::EXPORT_OK);
 
 =head2 Constants
 
@@ -55,8 +54,6 @@ imported into your namespace with the C<:tagtypes> tag.
 use constant MATRICS_TAGTYPE_EPC => 0;
 use constant MATRICS_TAGTYPE_MATRICS => 1;
 use constant MATRICS_TAGTYPE_OLDMATRICS => 2;
-
-sub tagcmp($$);
 
 =head2 Constructor
 
@@ -111,8 +108,15 @@ sub new
     
     $self->{len}=length($self->{id_bits});
     $self->{type} = $p{type};
-
     bless $self,$class;
+    $self->_init(%p);
+    $self;
+}
+
+sub type
+{
+    # my $self = shift;
+    return 'matrics';
 }
 
 =head2 Utility Functions
@@ -124,11 +128,6 @@ tags, and returns -1 if the first ID is lower, 0 if they are the same,
 or 1 if the first ID is higher.
 
 =cut
-
-sub tagcmp($$)
-{
-    return $_[0]->{id} cmp $_[1]->{id};
-}
 
 sub tag2txt
 {
@@ -145,7 +144,8 @@ sub txt2tag
 
 =head1 SEE ALSO
 
-L<RFID::Matrics::Reader>.
+L<RFID::Tag>, L<RFID::EPC::Tag>, L<RFID::Matrics::Reader>,
+L<http://www.eecs.umich.edu/~wherefid/code/rfid-perl/>.
 
 =head1 AUTHOR
 
